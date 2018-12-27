@@ -1,0 +1,177 @@
+---
+title: Klasifikasi Data Imbalance Menggunakan Support Vector Machine
+
+author: Risky Frasetio Wahyu Pratama
+date: '2018-09-04'
+slug: postingan-pertama
+categories:
+  - R
+tags:
+  - R Markdown
+---
+
+
+
+<p>Pada tulisan pertama saya ini, saya akan memberikan bahasan mengenai klasifikasi pada data atau kelas imbalance menggunakan Support Vector Machine beserta penerapan dalam mengatasi kasus tersebut menggunakan R. Namun sebelumnya saya akan sedikit membahas mengenai apa itu kelas imbalance dan bagaimana dampaknya terhadap hasil klasifikasi?</p>
+<p><img src="C:/Users/Risky/Desktop/github/blogdown_source/static/img/gambar1.jpg" /><!-- --></p>
+<div id="pendahuluan" class="section level1">
+<h1>1. Pendahuluan</h1>
+<p>Kadangkala kita menemui masalah saat mengerjakan suatu projek klasifikasi. Katakanlah, anda mendapatkan nilai akurasi sebesar 90% sehingga anda merasa cukup senang dengan hasil tersebut. Namun kebahagiaan tersebut tidak berlangsung lama saat anda melihat matriks konfusi dan mendapati bahwa ternyata semua pengamatan yang berasal baik dari kelas a maupun kelas b hanya terklasifikasikan ke dalam suatu kelas (kelas a) yang berarti tidak terdapat pengamatan dari kelas b yang diklasifikasikan dengan benar ke kelas b. Maka masalah anda tersebut adalah masalah kelas imbalance. Kelas imbalance merupakan suatu kondisi dimana suatu kelas yang ingin diteliti cenderung terdistribusi lebih banyak atau lebih sedikit dibandingkan kelas yang lain. Kelas yang terdistribusi lebih banyak disebut kelas mayor sedangkan kelas yang terdistribusi lebih sedikit disebut kelas minor. Dalam aplikasi di lapangan, dataset seperti itu banyak sekali ditemukan. Contohnya pada data diagnosa penyakit, persetujuan kredit, dll. Dalam kasus dimana terdapat kelas imbalance tersebut, ketepatan hasil klasifikasi pada kelas mayor akan cenderung tinggi, sementara ketepatan klasifikasi pada kelas minor akan cenderung rendah. Hal ini disebabkan karna kelas minor akan dianggap sebagai noise atau outlier oleh classifier saat membentuk suatu fungsi klasifikasi. Saya akan memberikan suatu ilustrasi dimana kelas imbalance menjadi suatu masalah yang sangat penting. Sebagai contoh, dalam diagnosa suatu penyakit, kelas positif yang akan diteliti adalah suatu kondisi medis yang langka (kelas minor) diantara banyaknya populasi normal (kelas mayor). Dalam kasus tersebut ketepatan klasifikasi pada kelas kondisi normal akan cenderung tinggi sementara ketepatan klasifikasi pada kondisi medis langka akan rendah. Bayangkan betapa besar kerugian saat seseorang yang seharusnya didiagnosa mengalami kondisi medis langka tapi justru didiagnosa masuk ke dalam kelas kondisi normal sehingga tidak mendapatkan treatment yang sesuai.</p>
+</div>
+<div id="mengatasi-kelas-imbalance" class="section level1">
+<h1>2. Mengatasi Kelas Imbalance</h1>
+<p>Lalu bagaimana cara mengatasi permasalahan tersebut? terdapat beberapa pendekatan yang dapat dilakukan dalam meng-handle masalah tersebut, diantaranya pendekatan yang berbasis preprocessing data (sampling), algoritma, ensemble serta gabungan dari beberapa pendekatan tersebut. Namun disini saya hanya akan memberikan tutorial pendekatan yang berbasis pada preprocessing data yakni algoritma over sampling SMOTE dan AdaSyn serta algoritma under sampling RUS.</p>
+<p>disini saya akan menggunakan data ecoli yang dapat didownload pada situs <a href="https://archive.ics.uci.edu/ml/machine-learning-databases/ecoli" class="uri">https://archive.ics.uci.edu/ml/machine-learning-databases/ecoli</a>.</p>
+<pre class="r"><code>url=&quot;https://archive.ics.uci.edu/ml/machine-learning-databases/ecoli/ecoli.data&quot;
+ecoli=read.table(url,header=FALSE)
+names(ecoli)=c(&quot;sequence_names&quot;,&quot;mcg&quot;,&quot;gvh&quot;,&quot;lip&quot;,&quot;chg&quot;,&quot;aac&quot;,&quot;alm1&quot;,&quot;alm2&quot;,&quot;class&quot;)
+head(ecoli,10)</code></pre>
+<pre><code>##    sequence_names  mcg  gvh  lip chg  aac alm1 alm2 class
+## 1       AAT_ECOLI 0.49 0.29 0.48 0.5 0.56 0.24 0.35    cp
+## 2      ACEA_ECOLI 0.07 0.40 0.48 0.5 0.54 0.35 0.44    cp
+## 3      ACEK_ECOLI 0.56 0.40 0.48 0.5 0.49 0.37 0.46    cp
+## 4      ACKA_ECOLI 0.59 0.49 0.48 0.5 0.52 0.45 0.36    cp
+## 5       ADI_ECOLI 0.23 0.32 0.48 0.5 0.55 0.25 0.35    cp
+## 6      ALKH_ECOLI 0.67 0.39 0.48 0.5 0.36 0.38 0.46    cp
+## 7      AMPD_ECOLI 0.29 0.28 0.48 0.5 0.44 0.23 0.34    cp
+## 8      AMY2_ECOLI 0.21 0.34 0.48 0.5 0.51 0.28 0.39    cp
+## 9       APT_ECOLI 0.20 0.44 0.48 0.5 0.46 0.51 0.57    cp
+## 10     ARAC_ECOLI 0.42 0.40 0.48 0.5 0.56 0.18 0.30    cp</code></pre>
+<pre class="r"><code>str(ecoli)</code></pre>
+<pre><code>## &#39;data.frame&#39;:    336 obs. of  9 variables:
+##  $ sequence_names: Factor w/ 336 levels &quot;AAS_ECOLI&quot;,&quot;AAT_ECOLI&quot;,..: 2 3 4 5 6 8 9 12 13 14 ...
+##  $ mcg           : num  0.49 0.07 0.56 0.59 0.23 0.67 0.29 0.21 0.2 0.42 ...
+##  $ gvh           : num  0.29 0.4 0.4 0.49 0.32 0.39 0.28 0.34 0.44 0.4 ...
+##  $ lip           : num  0.48 0.48 0.48 0.48 0.48 0.48 0.48 0.48 0.48 0.48 ...
+##  $ chg           : num  0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 ...
+##  $ aac           : num  0.56 0.54 0.49 0.52 0.55 0.36 0.44 0.51 0.46 0.56 ...
+##  $ alm1          : num  0.24 0.35 0.37 0.45 0.25 0.38 0.23 0.28 0.51 0.18 ...
+##  $ alm2          : num  0.35 0.44 0.46 0.36 0.35 0.46 0.34 0.39 0.57 0.3 ...
+##  $ class         : Factor w/ 8 levels &quot;cp&quot;,&quot;im&quot;,&quot;imL&quot;,..: 1 1 1 1 1 1 1 1 1 1 ...</code></pre>
+<p>lalu saya berikan nama variabel sesuai dengan page dataset description pada situs tersebut. Untuk mempersimple kasus ini, maka saya akan mereduksi kasus ini menjadi kasus klasifikasi biner dengan membuat variabel kelas selain pp menjadi kelas other.</p>
+<pre class="r"><code>ecoli$class=ifelse(ecoli$class!=&quot;pp&quot;,&quot;other&quot;,&quot;pp&quot;)
+ecoli$class=as.factor(ecoli$class)
+table(ecoli$class)</code></pre>
+<pre><code>## 
+## other    pp 
+##   284    52</code></pre>
+<pre class="r"><code>IR=as.numeric(table(ecoli$class)[1]/table(ecoli$class)[2])
+IR</code></pre>
+<pre><code>## [1] 5.461538</code></pre>
+<pre class="r"><code>ecoli.used=ecoli[,-c(1,5)]
+pairs(ecoli.used[,-ncol(ecoli.used)],col=ecoli.used$class)</code></pre>
+<p><img src="/post/2018-09-04-postingan-pertama_files/figure-html/biner-1.png" width="672" /></p>
+<p>variabel chg tidak diikutsertakan dalam analisis dikarenakan memiliki nilai yang sama untuk semua pengamatan. Berikut scatter plot untuk variabel gvh dan alm2 yang diperbesar</p>
+<pre class="r"><code>plot(ecoli.used$gvh,ecoli.used$alm2,col=ecoli.used$class,xlab=&quot;gvh&quot;,ylab=&quot;alm2&quot;)</code></pre>
+<p><img src="/post/2018-09-04-postingan-pertama_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<p>dapat dilihat bahwa proporsi antara kelas mayor dan minor (rasio imbalance) pada data tersebut yakni sebesar 5.4615385. selanjutnya data tersebut akan dibagi kedalam training dan testing menggunakan stratified holdout dengan proporsi 80% training dan 20% testing. Stratified disini bertujuan untuk menjaga rasio kelas imbalance di dalam data train dan data test tetap atau hampir sama dengan data set asal (ecoli).</p>
+<pre class="r"><code>library(rminer)
+ff=holdout(ecoli.used$class,ratio=0.8,mode=&quot;stratified&quot;,seed=1)
+data.train=ecoli.used[ff$tr,]
+data.test=ecoli.used[ff$ts,]</code></pre>
+<p>classifier yang akan digunakan dalam tutorial ini yakni Support Vector Machine dengan kernel Radial Basis Function (RBF) dengan menggunakan solver libsvm pada package <code>e1071::svm</code>.</p>
+<pre class="r"><code>library(e1071)
+library(MLmetrics)
+tuning.svm&lt;- tune(svm, train.x=data.train[,-ncol(data.train)], train.y=data.train[,ncol(data.train)],kernel=&quot;radial&quot;,ranges=list(cost=10^(-3:3), gamma=c(10^(-2:2))))
+tuning.svm$performances[,-4]</code></pre>
+<pre><code>##     cost gamma      error
+## 1  1e-03 1e-02 0.15626781
+## 2  1e-02 1e-02 0.15626781
+## 3  1e-01 1e-02 0.15626781
+## 4  1e+00 1e-02 0.10056980
+## 5  1e+01 1e-02 0.05940171
+## 6  1e+02 1e-02 0.04829060
+## 7  1e+03 1e-02 0.05569801
+## 8  1e-03 1e-01 0.15626781
+## 9  1e-02 1e-01 0.15626781
+## 10 1e-01 1e-01 0.13034188
+## 11 1e+00 1e-01 0.05199430
+## 12 1e+01 1e-01 0.05199430
+## 13 1e+02 1e-01 0.06680912
+## 14 1e+03 1e-01 0.09643875
+## 15 1e-03 1e+00 0.15626781
+## 16 1e-02 1e+00 0.15626781
+## 17 1e-01 1e+00 0.15626781
+## 18 1e+00 1e+00 0.05569801
+## 19 1e+01 1e+00 0.07051282
+## 20 1e+02 1e+00 0.08917379
+## 21 1e+03 1e+00 0.08917379
+## 22 1e-03 1e+01 0.15626781
+## 23 1e-02 1e+01 0.15626781
+## 24 1e-01 1e+01 0.15626781
+## 25 1e+00 1e+01 0.15256410
+## 26 1e+01 1e+01 0.14145299
+## 27 1e+02 1e+01 0.14145299
+## 28 1e+03 1e+01 0.14145299
+## 29 1e-03 1e+02 0.15626781
+## 30 1e-02 1e+02 0.15626781
+## 31 1e-01 1e+02 0.15626781
+## 32 1e+00 1e+02 0.15626781
+## 33 1e+01 1e+02 0.15626781
+## 34 1e+02 1e+02 0.15626781
+## 35 1e+03 1e+02 0.15626781</code></pre>
+<p>diperoleh parameter terbaik saat melakukan tuning yakni dengan cost=100 dan gamma=0.01. selanjutnya model akan dibangun pada data training menggunakan parameter tersebut dan melakukan prediksi pada data testing menggunkaan model tersebut.</p>
+<pre class="r"><code>model.svm=svm(class~.,data=data.train,scale=TRUE,kernel=&quot;radial&quot;,cost=tuning.svm$best.parameters[1],gamma=tuning.svm$best.parameters[2],type=&quot;C-classification&quot;)
+prediksi.svm=predict(model.svm,data.test[,-ncol(data.test)])
+akurasi.svm=Accuracy(data.test$class,prediksi.svm)
+sensitivity.svm=Sensitivity(data.test$class,prediksi.svm,positive = &quot;pp&quot;)
+specificity.svm=Specificity(data.test$class,prediksi.svm,positive = &quot;pp&quot;)
+G.mean.svm=sqrt(sensitivity.svm*specificity.svm)
+print(rbind(akurasi.svm,sensitivity.svm,specificity.svm,G.mean.svm))</code></pre>
+<pre><code>##                      [,1]
+## akurasi.svm     0.9701493
+## sensitivity.svm 0.8000000
+## specificity.svm 1.0000000
+## G.mean.svm      0.8944272</code></pre>
+<p>berdasarkan hasil tersebut, ketepatan klasifikasi untuk kelas mayor (other) sebesar 1 dan ketepatan klasifikasi untuk kelas minor (pp) sebesar 0.8, sehingga dapat diketahui bahwa classifier SVM yang digunakan cenderung lebih mudah dalam mengklasifikasikan pengamatan ke kelas mayor (other) dibandingkan ke kelas minor (pp).</p>
+<div id="smote" class="section level2">
+<h2>SMOTE</h2>
+<p>SMOTE merupakan algoritma oversampling yang pada prinsipnya bekerja melakukan duplikasi dengan membuat data sintetis pada kelas minor berdasarkan k-tetangga terdekat yang diperoleh dengan menghitung jarak euclidean terdekat terhadap pengamatan yang akan di duplikasi. Jumlah duplikasi yang dilakukan ditentukan sedemikian rupa sehingga nantinya rasio antara kelas mayor dan kelas minor + kelas minor sintetis akan mendekati balance. sampel sintetis dibentuk berdasarkan persamaan berikut</p>
+<p><span class="math display">\[\vec{x_{sintetis}}=\vec{x_i} + (\vec{x_{knn}} -\vec{x_i})rand(0,1)\]</span> pada proses membuat data sintetis dengan algoritma SMOTE, saya menggunakan <code>DMwR::SMOTE</code>.</p>
+<pre class="r"><code>library(DMwR)
+datamayor=data.train[data.train[,ncol(data.train)]==&quot;other&quot;,]
+dataminor.baru=SMOTE(class~.,data.train,k=5,perc.over = 400,perc.under=0)
+data.balance=rbind(datamayor,dataminor.baru)
+table(data.balance$class)</code></pre>
+<pre><code>## 
+## other    pp 
+##   227   210</code></pre>
+<p>setelah diperoleh distribusi kelas yang hampir balance, lalu dilakukan klasifikasi menggunakan SVM seperti bagian diatas.</p>
+<pre class="r"><code>model.smote.svm=svm(class~.,data=data.balance,scale=TRUE,kernel=&quot;radial&quot;,cost=tuning.svm$best.parameters[1],gamma=tuning.svm$best.parameters[2],type=&quot;C-classification&quot;)
+prediksi.smote.svm=predict(model.smote.svm,data.test[,-ncol(data.test)])
+akurasi.smote.svm=Accuracy(data.test$class,prediksi.smote.svm)
+sensitivity.smote.svm=Sensitivity(data.test$class,prediksi.smote.svm,positive = &quot;pp&quot;)
+specificity.smote.svm=Specificity(data.test$class,prediksi.smote.svm,positive = &quot;pp&quot;)
+G.mean.smote.svm=sqrt(sensitivity.smote.svm*specificity.smote.svm)
+print(rbind(akurasi.smote.svm,sensitivity.smote.svm,specificity.smote.svm,G.mean.smote.svm))</code></pre>
+<pre><code>##                            [,1]
+## akurasi.smote.svm     0.9850746
+## sensitivity.smote.svm 0.9000000
+## specificity.smote.svm 1.0000000
+## G.mean.smote.svm      0.9486833</code></pre>
+</div>
+<div id="adasyn" class="section level2">
+<h2>ADASYN</h2>
+<p>Algoritma ini merupakan algoritma yang berdasar pada pendekatan oversampling sama halnya dengan algoritma SMOTE. Namun yang berbeda yakni ide meberikan suatu distribusi bobot kepada pengamatan kelas minor berdasarkan tingkat kesulitan sampel tersebut untuk dipelajari yang mana nanti digunakan sebagai suatu acuan dalam memutuskan jumlah sampel sintetis yang akan di bangkitkan oleh setiap pengamatan kelas minor secara otomatis. Dengan kata lain setiap sampel kelas minor akan membangkitkan jumlah sampel sintetis yang berbeda-beda tidak seperti algoritma SMOTE yang mana setiap sampel kelas minor berkontribusi membangkitkan jumlah sampel yang sama.</p>
+<pre class="r"><code>library(smotefamily)
+adasyn=ADAS(X=data.train[,-ncol(data.train)],target=data.train[,ncol(data.train)],K=5)
+data.balance1=rbind(datamayor,adasyn$syn_data)
+table(data.balance1$class)</code></pre>
+<pre><code>## 
+## other    pp 
+##   227   183</code></pre>
+<p>selanjutnya dilakukan proses pembentukan model pada data yang telah balance</p>
+<pre class="r"><code>model.adasyn.svm=svm(class~.,data=data.balance1,scale=TRUE,kernel=&quot;radial&quot;,cost=tuning.svm$best.parameters[1],gamma=tuning.svm$best.parameters[2],type=&quot;C-classification&quot;)
+prediksi.adasyn.svm=predict(model.adasyn.svm,data.test[,-ncol(data.test)])
+akurasi.adasyn.svm=Accuracy(data.test$class,prediksi.adasyn.svm)
+sensitivity.adasyn.svm=Sensitivity(data.test$class,prediksi.adasyn.svm,positive = &quot;pp&quot;)
+specificity.adasyn.svm=Specificity(data.test$class,prediksi.adasyn.svm,positive = &quot;pp&quot;)
+G.mean.adasyn.svm=sqrt(sensitivity.adasyn.svm*specificity.adasyn.svm)
+print(rbind(akurasi.adasyn.svm,sensitivity.adasyn.svm,specificity.adasyn.svm,G.mean.adasyn.svm))</code></pre>
+<pre><code>##                             [,1]
+## akurasi.adasyn.svm     0.9552239
+## sensitivity.adasyn.svm 0.9000000
+## specificity.adasyn.svm 0.9649123
+## G.mean.adasyn.svm      0.9318911</code></pre>
+</div>
+</div>
