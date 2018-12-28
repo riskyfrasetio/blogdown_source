@@ -95,6 +95,7 @@ SMOTE merupakan algoritma oversampling yang pada prinsipnya bekerja melakukan du
 sampel sintetis dibentuk berdasarkan persamaan berikut
 
 $$\vec{x_{sintetis}}=\vec{x_i} + (\vec{x_{knn}} -\vec{x_i})rand(0,1)$$
+
 pada proses membuat data sintetis dengan algoritma SMOTE, saya menggunakan `DMwR::SMOTE`. Untuk referensi lebih detil mengenai SMOTE dapat dilihat [disini](https://arxiv.org/pdf/1106.1813.pdf)
 
 ```{r message=FALSE}
